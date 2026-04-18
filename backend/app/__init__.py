@@ -1,0 +1,1 @@
+"""Sashecka backend package."""
