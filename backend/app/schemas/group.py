@@ -1,5 +1,4 @@
 from datetime import datetime
-
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -29,6 +28,20 @@ class UserGroupAccessRead(BaseModel):
 class UserGroupAccessDelete(BaseModel):
     user_id: int # | None - для общих прав, которые нельзя удалить (они удаляются вместе с группой)
     group_id: int
+
+
+class UserGroupInvitationRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    user_id: int
+    group_id: int
+    is_active: bool
+    grants: list[str]
+    created_at: datetime
+    updated_at: datetime | None
+    group_name: str
+    group_description: str | None = None
 
 
 class GroupCreate(BaseModel):

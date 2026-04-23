@@ -47,7 +47,7 @@ export function GroupPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [accesses, setAccesses] = useState<
-    Array<{ user_id: number | null; grants: string[] }>
+    Array<{ user_id: number | null; is_active: boolean; grants: string[] }>
   >([]);
 
   useEffect(() => {
@@ -57,6 +57,7 @@ export function GroupPage() {
       setAccesses(
         groupQuery.data.accesses.map((access) => ({
           user_id: access.user_id,
+          is_active: access.is_active,
           grants: access.grants,
         })),
       );
@@ -162,6 +163,7 @@ export function GroupPage() {
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Участник</Table.Th>
+                <Table.Th>Статус</Table.Th>
                 <Table.Th>Права</Table.Th>
               </Table.Tr>
             </Table.Thead>
@@ -177,6 +179,11 @@ export function GroupPage() {
                 return (
                   <Table.Tr key={`${String(access.user_id)}-${index}`}>
                     <Table.Td>{label}</Table.Td>
+                    <Table.Td>
+                      <Badge variant="light" color={access.is_active ? "green" : "yellow"}>
+                        {access.is_active ? "Активен" : "Ожидает принятия"}
+                      </Badge>
+                    </Table.Td>
                     <Table.Td>
                       <MultiSelect
                         data={GRANT_OPTIONS}

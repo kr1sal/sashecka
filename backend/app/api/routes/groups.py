@@ -29,6 +29,10 @@ def _can_smth_group(group: Group, current_user: User, grant: str) -> bool:
     return False
 
 
+def _resolve_new_access_is_active(user_id: int | None) -> bool:
+    return user_id is None
+
+
 def _get_group_with_accesses(db: Session, group_id: int) -> Group | None:
     return db.scalar(
         select(Group)
@@ -101,7 +105,7 @@ def create_group(payload: GroupCreate, db: Session = Depends(get_db), current_us
             UserGroupAccess(
                 user_id=access.user_id,
                 group_id=group.id,
-                is_active=True,
+                is_active=_resolve_new_access_is_active(access.user_id),
                 grants=access.grants,
             )
         )
@@ -185,6 +189,17 @@ def update_group(
     group.name = payload.name
     group.description = payload.description
 
+    existing_accesses = list(
+        db.scalars(
+            select(UserGroupAccess).where(UserGroupAccess.group_id == group_id)
+        )
+    )
+    existing_personal_access_state_by_user_id = {
+        access.user_id: access.is_active
+        for access in existing_accesses
+        if access.user_id is not None
+    }
+
     # Не уверен, что стоит удалять все связи между группой и пользователями при обновлении группы, однако нам не нужно выполнять доп операцию по получению всех доступов, которые в списке не указаны
     db.execute(delete(UserGroupAccess).where(UserGroupAccess.group_id == group_id))
     db.flush()
@@ -210,7 +225,7 @@ def update_group(
             UserGroupAccess(
                 user_id=access.user_id,
                 group_id=group.id,
-                is_active=True,
+                is_active=existing_personal_access_state_by_user_id.get(access.user_id, False),
                 grants=access.grants,
             )
         )

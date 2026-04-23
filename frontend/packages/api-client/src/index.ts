@@ -59,6 +59,18 @@ export type UserGroupAccess = {
   updated_at: string | null;
 };
 
+export type UserGroupInvitation = {
+  id: number;
+  user_id: number;
+  group_id: number;
+  is_active: boolean;
+  grants: string[];
+  created_at: string;
+  updated_at: string | null;
+  group_name: string;
+  group_description?: string | null;
+};
+
 export type Group = {
   id: number;
   owner_id?: number;
@@ -67,6 +79,15 @@ export type Group = {
   accesses: UserGroupAccess[];
   created_at: string;
   updated_at: string | null;
+};
+
+export type GroupCreatePayload = {
+  name: string;
+  description?: string | null;
+  accesses: Array<{
+    user_id: number | null;
+    grants: string[];
+  }>;
 };
 
 export type GroupUpdatePayload = {
@@ -327,6 +348,22 @@ export function deleteCurrentUser(): Promise<void> {
   });
 }
 
+export function listCurrentUserGroupInvitations(): Promise<UserGroupInvitation[]> {
+  return request<UserGroupInvitation[]>("/users/current/group-invitations");
+}
+
+export function acceptCurrentUserGroupInvitation(accessId: number): Promise<UserGroupInvitation> {
+  return request<UserGroupInvitation>(`/users/current/group-invitations/${accessId}`, {
+    method: "PATCH",
+  });
+}
+
+export function ignoreCurrentUserGroupInvitation(accessId: number): Promise<void> {
+  return request<void>(`/users/current/group-invitations/${accessId}`, {
+    method: "DELETE",
+  });
+}
+
 export function listUsers(query?: string): Promise<User[]> {
   return request<User[]>(`/users${toQueryString({ q: query })}`);
 }
@@ -337,6 +374,16 @@ export function getUser(userId: number): Promise<User> {
 
 export function listGroups(query?: string): Promise<Group[]> {
   return request<Group[]>(`/groups${toQueryString({ q: query })}`);
+}
+
+export function createGroup(payload: GroupCreatePayload): Promise<Group> {
+  return request<Group>("/groups", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
 }
 
 export function getGroup(groupId: number): Promise<Group> {
