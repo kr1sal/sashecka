@@ -11,7 +11,7 @@ ENV PORT=8000
 
 WORKDIR /app
 
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock ./
 
 # Install third-party dependencies first for better layer caching.
 RUN uv sync --no-dev --no-install-project

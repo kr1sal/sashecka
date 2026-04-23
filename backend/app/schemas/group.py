@@ -47,6 +47,7 @@ class GroupRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    owner_id: int
     name: str
     description: str | None = None
     accesses: list[UserGroupAccessRead] = Field(default_factory=list)

@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import delete, select
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.deps import get_current_user, get_db
@@ -37,20 +37,22 @@ def _get_group_with_accesses(db: Session, group_id: int) -> Group | None:
     )
 
 
-def _filter_existing_user_ids(db: Session, user_ids: list[int]) -> list[int]:
-    if not user_ids:
+def _filter_existing_user_ids(db: Session, user_ids: list[int | None]) -> list[int]:
+    normalized_user_ids = [user_id for user_id in user_ids if user_id is not None]
+    if not normalized_user_ids:
         return []
 
-    found_ids = set(db.scalars(select(User.id).where(User.id.in_(user_ids))))
+    found_ids = set(db.scalars(select(User.id).where(User.id.in_(normalized_user_ids))))
     return sorted(found_ids)
 
 
-def _validate_user_ids(db: Session, user_ids: list[int]) -> None:
-    if not user_ids:
+def _validate_user_ids(db: Session, user_ids: list[int | None]) -> None:
+    normalized_user_ids = [user_id for user_id in user_ids if user_id is not None]
+    if not normalized_user_ids:
         return
 
-    found_ids = _filter_existing_user_ids(db, user_ids)
-    missing_ids = sorted(set(user_ids) - set(found_ids))
+    found_ids = _filter_existing_user_ids(db, normalized_user_ids)
+    missing_ids = sorted(set(normalized_user_ids) - set(found_ids))
     if missing_ids:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -94,6 +96,7 @@ def create_group(payload: GroupCreate, db: Session = Depends(get_db), current_us
             db.add(
                 common_access
             )
+            continue
         db.add(
             UserGroupAccess(
                 user_id=access.user_id,
@@ -127,11 +130,19 @@ def create_group(payload: GroupCreate, db: Session = Depends(get_db), current_us
 
 @router.get("", response_model=list[GroupRead], summary="List groups")
 def list_groups(
+    q: str | None = Query(default=None, min_length=1),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[Group]:
+    statement = select(Group).options(selectinload(Group.accesses))
+    if q:
+        search = f"%{q}%"
+        statement = statement.where(
+            or_(Group.name.ilike(search), Group.description.ilike(search))
+        )
+
     groups = list(
-        db.scalars(select(Group).options(selectinload(Group.accesses)).order_by(Group.id))
+        db.scalars(statement.order_by(Group.id))
     )
     return [group for group in groups if _can_smth_group(group, current_user, 'read')]
 
@@ -139,7 +150,6 @@ def list_groups(
 @router.get("/{group_id}", response_model=GroupRead, summary="Get group by id")
 def get_group(group_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> Group:
     group = _get_group_with_accesses(db, group_id)
-    print(group)
     if group is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
     if not _can_smth_group(group, current_user, 'read'):
@@ -195,6 +205,7 @@ def update_group(
             db.add(
                 common_access
             )
+            continue
         db.add(
             UserGroupAccess(
                 user_id=access.user_id,

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session
 
@@ -51,8 +51,22 @@ def delete_user(current_user: User = Depends(get_current_user), db: Session = De
 
 
 @router.get("", response_model=list[UserRead], summary="List users")
-def list_users(db: Session = Depends(get_db)) -> list[User]:
-    return list(db.scalars(select(User).order_by(User.id)))
+def list_users(
+    q: str | None = Query(default=None, min_length=1),
+    db: Session = Depends(get_db),
+) -> list[User]:
+    statement = select(User)
+    if q:
+        search = f"%{q}%"
+        statement = statement.where(
+            or_(
+                User.email.ilike(search),
+                User.username.ilike(search),
+                User.full_name.ilike(search),
+            )
+        )
+
+    return list(db.scalars(statement.order_by(User.id)))
 
 
 @router.get("/{user_id}", response_model=UserRead, summary="Get user by id")
