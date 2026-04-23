@@ -1,0 +1,10 @@
+{
+  "latestErrorEvent": {
+    "code": "TYPE-001",
+    "message": "Failed to generate type declaration. Execute the below cmd to reproduce and fix the error. #TYPE-001\nargs: {\"cmd\":\"npx tsc --project /home/kr1sal/sashecka/frontend/apps/profile-vue/node_modules/.federation/tsconfig.ac0669e682314c6e1a84e9b70c9103f7.json\"}\nView the docs to see how to solve: https://module-federation.io/guide/troubleshooting/type#type-001",
+    "args": {
+      "cmd": "npx tsc --project /home/kr1sal/sashecka/frontend/apps/profile-vue/node_modules/.federation/tsconfig.ac0669e682314c6e1a84e9b70c9103f7.json"
+    },
+    "timestamp": 1776677676097
+  }
+}

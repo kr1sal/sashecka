@@ -1,0 +1,19 @@
+{
+  "name": "sashecka-frontend",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "node ./scripts/dev-all.mjs",
+    "dev:all": "node ./scripts/dev-all.mjs",
+    "dev:shell": "npm run dev --workspace @sashecka/shell",
+    "dev:auth": "npm run dev --workspace @sashecka/auth-remote",
+    "dev:react-app": "npm run dev --workspace @sashecka/react-app-remote",
+    "dev:profile-vue": "npm run dev --workspace @sashecka/profile-vue-remote",
+    "build": "npm run build --workspaces --if-present",
+    "preview:shell": "npm run preview --workspace @sashecka/shell"
+  }
+}

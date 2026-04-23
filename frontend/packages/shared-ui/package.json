@@ -1,0 +1,14 @@
+{
+  "name": "@sashecka/shared-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@sashecka/api-client": "*",
+    "@mantine/core": "^9.0.2",
+    "react": "^19.2.5"
+  },
+  "exports": {
+    ".": "./src/index.tsx"
+  }
+}

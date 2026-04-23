@@ -1,0 +1,24 @@
+{
+  "name": "@sashecka/profile-vue-remote",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 4176 --strictPort",
+    "build": "vite build",
+    "preview": "vite preview --port 4176 --strictPort"
+  },
+  "dependencies": {
+    "@module-federation/vite": "^1.14.5",
+    "@primeuix/themes": "^2.0.3",
+    "@sashecka/api-client": "*",
+    "@sashecka/auth-session": "*",
+    "@sashecka/design-tokens": "*",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "primeicons": "^7.0.0",
+    "primevue": "^4.5.5",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.8",
+    "vue": "^3.5.32"
+  }
+}

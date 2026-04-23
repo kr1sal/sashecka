@@ -1,0 +1,30 @@
+:root {
+  --sashecka-bg: #f5f7fb;
+  --sashecka-surface: #ffffff;
+  --sashecka-surface-muted: #eef3ff;
+  --sashecka-text: #182230;
+  --sashecka-text-muted: #516075;
+  --sashecka-border: #d6dfeb;
+  --sashecka-primary: #4c6ef5;
+  --sashecka-primary-soft: #e6ecff;
+  --sashecka-danger: #e03131;
+  --sashecka-radius: 16px;
+  --sashecka-shadow: 0 12px 32px rgba(76, 110, 245, 0.12);
+}
+
+body {
+  background: var(--sashecka-bg);
+  color: var(--sashecka-text);
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--sashecka-text);
+  caret-color: var(--sashecka-text);
+  -webkit-box-shadow: 0 0 0 1000px var(--sashecka-surface-muted) inset;
+  transition: background-color 9999s ease-out 0s;
+}
