@@ -82,6 +82,9 @@ export function ShellLayout() {
   });
   const invitations = invitationsQuery.data ?? [];
   const invitationsCount = invitations.length;
+  const avatarStyle = user?.profile_accent_color
+    ? { backgroundColor: user.profile_accent_color, color: "#ffffff" }
+    : undefined;
 
   return (
     <AppShell
@@ -187,7 +190,7 @@ export function ShellLayout() {
               <Menu.Target>
                 <UnstyledButton>
                   <Group gap="sm">
-                    <Avatar color="indigo" radius="xl">
+                    <Avatar color="indigo" radius="xl" style={avatarStyle}>
                       {user?.username?.slice(0, 1).toUpperCase() ?? "U"}
                     </Avatar>
                     <Stack gap={0}>

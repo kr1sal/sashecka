@@ -33,6 +33,8 @@ export type User = {
   email: string;
   username: string;
   full_name?: string | null;
+  profile_bio?: string | null;
+  profile_accent_color?: string | null;
   created_at?: string;
   updated_at?: string | null;
 };
@@ -47,6 +49,8 @@ export type UserUpdatePayload = {
   email: string;
   username: string;
   full_name?: string | null;
+  profile_bio?: string | null;
+  profile_accent_color?: string | null;
 };
 
 export type UserGroupAccess = {

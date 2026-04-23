@@ -3,6 +3,8 @@ export type AuthUser = {
   email: string;
   username: string;
   full_name?: string | null;
+  profile_bio?: string | null;
+  profile_accent_color?: string | null;
 };
 
 export type AuthSessionState = {

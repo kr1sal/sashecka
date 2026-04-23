@@ -62,6 +62,10 @@ def update_user(
     current_user.email = payload.email
     current_user.username = payload.username
     current_user.full_name = payload.full_name
+    if "profile_bio" in payload.model_fields_set:
+        current_user.profile_bio = payload.profile_bio
+    if "profile_accent_color" in payload.model_fields_set:
+        current_user.profile_accent_color = payload.profile_accent_color
 
     db.commit()
     db.refresh(current_user)
