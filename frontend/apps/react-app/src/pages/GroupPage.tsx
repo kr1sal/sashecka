@@ -4,6 +4,7 @@ import {
   Card,
   Group as MantineGroup,
   MultiSelect,
+  Select,
   Stack,
   Table,
   Text,
@@ -50,6 +51,9 @@ export function GroupPage() {
     Array<{ user_id: number | null; is_active: boolean; grants: string[] }>
   >([]);
 
+  const [inviteUserId, setInviteUserId] = useState<string | null>(null);
+  const [inviteGrants, setInviteGrants] = useState<string[]>(["read"]);
+
   useEffect(() => {
     if (groupQuery.data) {
       setName(groupQuery.data.name);
@@ -72,6 +76,30 @@ export function GroupPage() {
     () => (groupQuery.data ? canManageGroup(groupQuery.data, user, "delete") : false),
     [groupQuery.data, user],
   );
+
+  const memberUserIdSet = useMemo(() => {
+    const set = new Set<number>();
+    accesses.forEach((access) => {
+      if (access.user_id !== null && access.user_id !== undefined) {
+        set.add(access.user_id);
+      }
+    });
+    return set;
+  }, [accesses]);
+
+  const inviteUserOptions = useMemo(() => {
+    if (!groupQuery.data) {
+      return [];
+    }
+    return (usersQuery.data ?? [])
+      .filter((u) => u.id !== user?.id)
+      .filter((u) => u.id !== groupQuery.data.owner_id)
+      .filter((u) => !memberUserIdSet.has(u.id))
+      .map((u) => ({
+        value: String(u.id),
+        label: u.full_name || u.username,
+      }));
+  }, [groupQuery.data, usersQuery.data, user?.id, memberUserIdSet]);
 
   const updateMutation = useMutation({
     mutationFn: () =>
@@ -159,12 +187,58 @@ export function GroupPage() {
       <Card withBorder radius="lg" p="xl">
         <Stack>
           <Title order={3}>Права участников</Title>
+          {canWrite ? (
+            <Stack gap="sm" p="md" style={{ background: "var(--mantine-color-body)" }}>
+              <Text size="sm" c="dimmed">
+                Новички добавляются как приглашение. После принятия в уведомлениях статус станет
+                «Активен».
+              </Text>
+              <MantineGroup align="flex-end" grow>
+                <Select
+                  label="Пользователь"
+                  placeholder="Кого пригласить"
+                  data={inviteUserOptions}
+                  value={inviteUserId}
+                  onChange={setInviteUserId}
+                  searchable
+                  clearable
+                />
+                <MultiSelect
+                  label="Права"
+                  data={GRANT_OPTIONS}
+                  value={inviteGrants}
+                  onChange={setInviteGrants}
+                />
+                <Button
+                  disabled={!inviteUserId}
+                  onClick={() => {
+                    if (!inviteUserId) {
+                      return;
+                    }
+                    const nextId = Number(inviteUserId);
+                    if (Number.isNaN(nextId) || memberUserIdSet.has(nextId)) {
+                      return;
+                    }
+                    setAccesses((current) => [
+                      ...current,
+                      { user_id: nextId, is_active: false, grants: inviteGrants },
+                    ]);
+                    setInviteUserId(null);
+                    setInviteGrants(["read"]);
+                  }}
+                >
+                  Добавить приглашение
+                </Button>
+              </MantineGroup>
+            </Stack>
+          ) : null}
           <Table striped highlightOnHover>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Участник</Table.Th>
                 <Table.Th>Статус</Table.Th>
                 <Table.Th>Права</Table.Th>
+                {canWrite ? <Table.Th>Действия</Table.Th> : null}
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -200,6 +274,28 @@ export function GroupPage() {
                         disabled={!canWrite}
                       />
                     </Table.Td>
+                    {canWrite ? (
+                      <Table.Td>
+                        {access.user_id === null ? (
+                          <Text size="sm" c="dimmed">
+                            —
+                          </Text>
+                        ) : (
+                          <Button
+                            size="xs"
+                            variant="subtle"
+                            color="red"
+                            onClick={() => {
+                              setAccesses((current) =>
+                                current.filter((_, currentIndex) => currentIndex !== index),
+                              );
+                            }}
+                          >
+                            Удалить
+                          </Button>
+                        )}
+                      </Table.Td>
+                    ) : null}
                   </Table.Tr>
                 );
               })}
