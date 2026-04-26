@@ -1,41 +1,9 @@
-from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
-from sqlalchemy import inspect, text
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 import app.models
 from app.api.router import api_router
 from app.core.config import settings
-from app.db.base import Base
-from app.db.session import engine
-
-
-def _ensure_user_profile_columns() -> None:
-    inspector = inspect(engine)
-    if "users" not in inspector.get_table_names():
-        return
-
-    column_names = {column["name"] for column in inspector.get_columns("users")}
-    statements: list[str] = []
-
-    if "profile_bio" not in column_names:
-        statements.append("ALTER TABLE users ADD COLUMN profile_bio VARCHAR(1000)")
-    if "profile_accent_color" not in column_names:
-        statements.append("ALTER TABLE users ADD COLUMN profile_accent_color VARCHAR(7)")
-
-    if not statements:
-        return
-
-    with engine.begin() as connection:
-        for statement in statements:
-            connection.execute(text(statement))
-
-
-@asynccontextmanager
-async def lifespan(_: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    _ensure_user_profile_columns()
-    yield
 
 
 app = FastAPI(
@@ -44,8 +12,13 @@ app = FastAPI(
     description=(
         "Minimal FastAPI backend with registration, login and protected profile."
     ),
-    lifespan=lifespan,
+    docs_url="/docs" if settings.enable_docs else None,
+    redoc_url="/redoc" if settings.enable_docs else None,
+    openapi_url="/openapi.json" if settings.enable_docs else None,
 )
+
+if settings.allowed_hosts and settings.allowed_hosts != ["*"]:
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
 
 app.include_router(api_router)
 
@@ -53,3 +26,8 @@ app.include_router(api_router)
 @app.get("/", tags=["health"])
 def root() -> dict[str, str]:
     return {"message": "Sashecka API is running"}
+
+
+@app.get("/health", tags=["health"])
+def health() -> dict[str, str]:
+    return {"status": "ok"}

@@ -17,10 +17,12 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --no-dev --no-install-project
 
 COPY app ./app
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
 
 # Install the local package into the project environment.
 RUN uv sync --no-dev
+RUN chmod +x /app/docker-entrypoint.sh
 
 EXPOSE $PORT
 
-CMD ["sh", "-c", "/app/.venv/bin/uvicorn app.main:app --host $HOST --port $PORT"]
+CMD ["/app/docker-entrypoint.sh"]

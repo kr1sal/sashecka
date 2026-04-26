@@ -1,0 +1,77 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync
+
+      - name: Compile backend
+        working-directory: backend
+        run: uv run python -m compileall app
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.19.0"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build auth remote
+        working-directory: frontend
+        run: npm run build --workspace @sashecka/auth-remote
+
+      - name: Build profile vue remote
+        working-directory: frontend
+        run: npm run build --workspace @sashecka/profile-vue-remote
+
+      - name: Build react app remote
+        working-directory: frontend
+        run: npm run build --workspace @sashecka/react-app-remote -- --emptyOutDir false
+
+      - name: Build shell
+        working-directory: frontend
+        run: npm run build --workspace @sashecka/shell -- --emptyOutDir false
+
+      - name: Typecheck react app
+        working-directory: frontend
+        run: npm exec tsc -- -p "${GITHUB_WORKSPACE}/frontend/apps/react-app/tsconfig.json" --noEmit
+
+  production-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate production compose
+        env:
+          SERVER_NAME: example.com
+          PUBLIC_ORIGIN: https://example.com
+          ALLOWED_HOSTS: example.com
+          APP_SECRET_KEY: example-secret-for-ci-only
+          POSTGRES_PASSWORD: example-db-password
+        run: docker compose -f compose.prod.yaml config >/dev/null

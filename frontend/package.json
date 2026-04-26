@@ -15,5 +15,8 @@
     "dev:profile-vue": "npm run dev --workspace @sashecka/profile-vue-remote",
     "build": "npm run build --workspaces --if-present",
     "preview:shell": "npm run preview --workspace @sashecka/shell"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.1"
   }
 }

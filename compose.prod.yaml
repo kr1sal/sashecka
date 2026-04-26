@@ -1,0 +1,164 @@
+x-static-service: &static-service
+  restart: unless-stopped
+  networks:
+    - internal
+  expose:
+    - "80"
+  healthcheck:
+    test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz >/dev/null 2>&1 || exit 1"]
+    interval: 30s
+    timeout: 5s
+    retries: 3
+    start_period: 15s
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sashecka}
+      POSTGRES_USER: ${POSTGRES_USER:-sashecka}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD?POSTGRES_PASSWORD must be set}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sashecka} -d ${POSTGRES_DB:-sashecka}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  backend:
+    image: sashecka-backend:prod
+    build:
+      context: ./backend
+    environment:
+      APP_ENV: production
+      APP_NAME: ${APP_NAME:-Sashecka API}
+      APP_VERSION: ${APP_VERSION:-0.1.0}
+      API_PREFIX: /api/v1
+      APP_SECRET_KEY: ${APP_SECRET_KEY?APP_SECRET_KEY must be set}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-sashecka}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-sashecka}
+      ENABLE_DOCS: ${ENABLE_DOCS:-false}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS?ALLOWED_HOSTS must be set}
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-*}
+      HOST: 0.0.0.0
+      PORT: 8000
+      RUN_DB_MIGRATIONS: ${RUN_DB_MIGRATIONS:-true}
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-2}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - internal
+    expose:
+      - "8000"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')\" >/dev/null 2>&1 || exit 1",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  shell-static:
+    <<: *static-service
+    image: sashecka-shell-static:prod
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        WORKSPACE_NAME: "@sashecka/shell"
+        APP_DIR: shell
+        APP_KIND: spa
+        VITE_BASE_PATH: /
+        VITE_API_BASE_URL: /api/v1
+        VITE_AUTH_REMOTE_URL: ${PUBLIC_ORIGIN?PUBLIC_ORIGIN must be set}/remotes/auth/remoteEntry.js
+        VITE_REACT_APP_REMOTE_URL: ${PUBLIC_ORIGIN?PUBLIC_ORIGIN must be set}/remotes/react/remoteEntry.js
+        VITE_PROFILE_VUE_REMOTE_URL: ${PUBLIC_ORIGIN?PUBLIC_ORIGIN must be set}/remotes/profile/remoteEntry.js
+
+  auth-remote-static:
+    <<: *static-service
+    image: sashecka-auth-remote-static:prod
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        WORKSPACE_NAME: "@sashecka/auth-remote"
+        APP_DIR: auth
+        APP_KIND: static
+        VITE_BASE_PATH: /remotes/auth/
+
+  react-app-remote-static:
+    <<: *static-service
+    image: sashecka-react-app-remote-static:prod
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        WORKSPACE_NAME: "@sashecka/react-app-remote"
+        APP_DIR: react-app
+        APP_KIND: static
+        VITE_BASE_PATH: /remotes/react/
+
+  profile-vue-remote-static:
+    <<: *static-service
+    image: sashecka-profile-vue-remote-static:prod
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        WORKSPACE_NAME: "@sashecka/profile-vue-remote"
+        APP_DIR: profile-vue
+        APP_KIND: static
+        VITE_BASE_PATH: /remotes/profile/
+
+  reverse-proxy:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+      shell-static:
+        condition: service_healthy
+      auth-remote-static:
+        condition: service_healthy
+      react-app-remote-static:
+        condition: service_healthy
+      profile-vue-remote-static:
+        condition: service_healthy
+    environment:
+      SERVER_NAME: ${SERVER_NAME?SERVER_NAME must be set}
+      TLS_CERT_PATH: ${TLS_CERT_PATH:-/etc/nginx/certs/fullchain.pem}
+      TLS_KEY_PATH: ${TLS_KEY_PATH:-/etc/nginx/certs/privkey.pem}
+      AUTH_RATE_LIMIT: ${AUTH_RATE_LIMIT:-10r/m}
+    volumes:
+      - ./deploy/nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./deploy/certs:/etc/nginx/certs:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  postgres-data:
+
+networks:
+  internal:
+    driver: bridge
+    internal: true
