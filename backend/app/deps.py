@@ -3,7 +3,7 @@ from typing import Generator
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -42,9 +42,7 @@ def get_current_user(
     if not subject:
         raise credentials_exception
 
-    user = db.scalar(
-        select(User).where(or_(User.email == subject, User.username == subject))
-    )
+    user = db.scalar(select(User).where(User.email == subject))
     if user is None:
         raise credentials_exception
 

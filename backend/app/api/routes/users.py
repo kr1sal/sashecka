@@ -3,6 +3,7 @@ from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.deps import get_current_user, get_db
+from app.models.group import Group
 from app.models.user import User
 from app.models.user_group_access import UserGroupAccess
 from app.schemas.group import UserGroupInvitationRead
@@ -158,6 +159,10 @@ def ignore_current_user_group_invitation(
 
 @router.delete("/current", status_code=status.HTTP_204_NO_CONTENT, summary="Delete user")
 def delete_user(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Response:
+    owned_group_ids = list(db.scalars(select(Group.id).where(Group.owner_id == current_user.id)))
+    if owned_group_ids:
+        db.execute(delete(UserGroupAccess).where(UserGroupAccess.group_id.in_(owned_group_ids)))
+        db.execute(delete(Group).where(Group.id.in_(owned_group_ids)))
     db.execute(delete(UserGroupAccess).where(UserGroupAccess.user_id == current_user.id))
     db.delete(current_user)
     db.commit()

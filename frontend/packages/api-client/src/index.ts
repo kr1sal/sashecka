@@ -317,7 +317,7 @@ export function registerUser(payload: {
 export function loginUser(payload: { username: string; password: string }): Promise<AuthResponse> {
   const body = new URLSearchParams();
   body.set("username", payload.username.trim());
-  body.set("password", payload.password.trim());
+  body.set("password", payload.password);
 
   return request<AuthResponse>(
     "/auth/login",

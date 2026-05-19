@@ -12,7 +12,7 @@ import {
   Title,
 } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { deleteGroup, getGroup, listUsers, updateGroup } from "@sashecka/api-client";
@@ -54,8 +54,11 @@ export function GroupPage() {
   const [inviteUserId, setInviteUserId] = useState<string | null>(null);
   const [inviteGrants, setInviteGrants] = useState<string[]>(["read"]);
 
+  const initializedRef = useRef(false);
+
   useEffect(() => {
-    if (groupQuery.data) {
+    if (groupQuery.data && !initializedRef.current) {
+      initializedRef.current = true;
       setName(groupQuery.data.name);
       setDescription(groupQuery.data.description ?? "");
       setAccesses(
@@ -154,7 +157,10 @@ export function GroupPage() {
               color="red"
               variant="light"
               loading={deleteMutation.isPending}
-              onClick={() => deleteMutation.mutate()}
+              onClick={() => {
+                if (!window.confirm(`Удалить группу «${groupQuery.data.name}»? Это действие нельзя отменить.`)) return;
+                deleteMutation.mutate();
+              }}
             >
               Удалить группу
             </Button>
@@ -251,7 +257,7 @@ export function GroupPage() {
                     : member?.full_name || member?.username || `User #${access.user_id}`;
 
                 return (
-                  <Table.Tr key={`${String(access.user_id)}-${index}`}>
+                  <Table.Tr key={access.user_id === null ? "common" : String(access.user_id)}>
                     <Table.Td>{label}</Table.Td>
                     <Table.Td>
                       <Badge variant="light" color={access.is_active ? "green" : "yellow"}>

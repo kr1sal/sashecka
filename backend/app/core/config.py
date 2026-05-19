@@ -11,13 +11,13 @@ ENV_VALUES = dotenv_values(ENV_FILE) if ENV_FILE.exists() else {}
 
 
 def _get_env(name: str, default: str) -> str:
-    file_value = ENV_VALUES.get(name)
-    if file_value not in (None, ""):
-        return file_value
-
     env_value = os.getenv(name)
     if env_value not in (None, ""):
         return env_value
+
+    file_value = ENV_VALUES.get(name)
+    if file_value not in (None, ""):
+        return file_value
 
     return default
 

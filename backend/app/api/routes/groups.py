@@ -12,6 +12,18 @@ from app.schemas.group import GroupCreate, GroupRead, GroupUpdate, UserGroupAcce
 router = APIRouter(prefix="/groups", tags=["groups"], dependencies=[Depends(get_current_user)],)
 
 
+ALLOWED_GRANTS = {"read", "write", "delete"}
+
+
+def _validate_grants(grants: list[str]) -> None:
+    invalid = set(grants) - ALLOWED_GRANTS
+    if invalid:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid grants: {sorted(invalid)}. Allowed: {sorted(ALLOWED_GRANTS)}",
+        )
+
+
 def _has_grant(access: UserGroupAccess, grant: str) -> bool:
     return access.is_active and grant in access.grants
 
@@ -79,27 +91,32 @@ def create_group(payload: GroupCreate, db: Session = Depends(get_db), current_us
         )
    
     _validate_user_ids(db, [access.user_id for access in payload.accesses])
+    for access in payload.accesses:
+        _validate_grants(access.grants)
 
     group = Group(owner_id=current_user.id, name=payload.name, description=payload.description)
     db.add(group)
     db.flush()
 
     # Создаём связи между группой и пользователями только для тех пользователей, которые существуют + валидация payload
-    common_access: UserGroupAccessCreate | None = None
+    common_access: UserGroupAccess | None = None
     for access in payload.accesses:
         # Пропускаем права для текущего пользователя, они всегда read/write/delete
         if access.user_id == current_user.id:
             continue
-        if access.user_id is None and common_access is None:
+        if access.user_id is None:
+            if common_access is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Only one common access (user_id=null) is allowed per group",
+                )
             common_access = UserGroupAccess(
                 user_id=None,
                 group_id=group.id,
                 is_active=True,
                 grants=access.grants,
             )
-            db.add(
-                common_access
-            )
+            db.add(common_access)
             continue
         db.add(
             UserGroupAccess(
@@ -168,7 +185,7 @@ def update_group(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Group:
-    group = db.get(Group, group_id)
+    group = _get_group_with_accesses(db, group_id)
     if group is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
     if not _can_smth_group(group, current_user, 'write'):
@@ -185,6 +202,8 @@ def update_group(
     
     # При обновлении группы проверяем, что все пользователи, для которых устанавливаются права, существуют
     _validate_user_ids(db, [access.user_id for access in payload.accesses])
+    for access in payload.accesses:
+        _validate_grants(access.grants)
 
     group.name = payload.name
     group.description = payload.description
@@ -205,21 +224,24 @@ def update_group(
     db.flush()
 
     # Создаём связи между группой и пользователями только для тех пользователей, которые существуют + валидация payload
-    common_access: UserGroupAccessUpdate | None = None
+    common_access: UserGroupAccess | None = None
     for access in payload.accesses:
         # Пропускаем права для текущего пользователя, они всегда read/write/delete
         if access.user_id == current_user.id:
             continue
-        if access.user_id is None and common_access is None:
+        if access.user_id is None:
+            if common_access is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Only one common access (user_id=null) is allowed per group",
+                )
             common_access = UserGroupAccess(
                 user_id=None,
                 group_id=group.id,
                 is_active=True,
                 grants=access.grants,
             )
-            db.add(
-                common_access
-            )
+            db.add(common_access)
             continue
         db.add(
             UserGroupAccess(
@@ -258,7 +280,7 @@ def update_group(
     summary="Delete group",
 )
 def delete_group(group_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> Response:
-    group = db.get(Group, group_id)
+    group = _get_group_with_accesses(db, group_id)
     if group is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
     if not _can_smth_group(group, current_user, 'delete'):
